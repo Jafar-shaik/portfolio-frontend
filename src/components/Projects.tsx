@@ -1,9 +1,9 @@
-import { useState, useEffect, ChangeEvent, FormEvent } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Github, ChevronRight, Plus, X, Trash2 } from "lucide-react";
 
 type Project = {
-  _id?: string; // MongoDB id if you want
+  _id?: string;
   title: string;
   shortDescription: string;
   fullDescription: string;
@@ -17,13 +17,17 @@ const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [expandedProject, setExpandedProject] = useState<number | null>(null);
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Modal states
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
 
-  // Loading state for form submission
+  // Loading states
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form state for new project
+  // Admin credentials
+  const [adminCredentials, setAdminCredentials] = useState({ username: "", password: "" });
+
+  // Project form data
   const [formData, setFormData] = useState<Project>({
     title: "",
     shortDescription: "",
@@ -34,7 +38,9 @@ const Projects = () => {
     githubUrl: "",
   });
 
-  // Fetch projects on mount
+  // Selected project for deletion
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -45,60 +51,77 @@ const Projects = () => {
         if (!res.ok) throw new Error("Failed to fetch projects");
         return res.json();
       })
-      .then((data) => {
-        console.log("Fetched projects:", data);
-        setProjects(data);
-      })
+      .then((data) => setProjects(data))
       .catch((err) => console.error(err));
   };
 
-  // Open modal and reset form
-  const openModal = () => {
-    setFormData({
-      title: "",
-      shortDescription: "",
-      fullDescription: "",
-      technologies: [],
-      image: "",
-      liveUrl: "",
-      githubUrl: "",
-    });
-    setIsModalOpen(true);
+  // Open admin modal first
+  const handleAddClick = () => {
+    setAdminCredentials({ username: "", password: "" });
+    setIsAdminModalOpen(true);
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setIsSubmitting(false);
+  const handleDeleteClick = (id: string) => {
+    setSelectedProjectId(id);
+    setIsAdminModalOpen(true); // reuse admin modal for delete auth
   };
 
-  // Handle input change in form
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  // Handle project form input change
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        name === "technologies"
-          ? value.split(",").map((tech) => tech.trim())
-          : value,
+      [name]: name === "technologies" ? value.split(",").map((t) => t.trim()) : value,
     }));
   };
 
-  // Submit new project form
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  const toggleProject = (index: number) => {
+    setExpandedProject(expandedProject === index ? null : index);
+  };
 
-    if (!formData.title.trim()) {
-      alert("Title is required");
-      return;
-    }
+  // Authenticate admin by sending a dummy GET request to a protected endpoint
+  const authenticateAdmin = (action: "add" | "delete") => {
+    const { username, password } = adminCredentials;
+    // Attempt to fetch projects (or you can hit DELETE with id if deleting)
+    fetch("http://localhost:8080/api/projects", {
+      method: "GET",
+      headers: {
+        Authorization: "Basic " + btoa(`${username}:${password}`),
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Invalid credentials");
+        setIsAdminModalOpen(false);
+        if (action === "add") {
+          // Open project form modal
+          setFormData({
+            title: "",
+            shortDescription: "",
+            fullDescription: "",
+            technologies: [],
+            image: "",
+            liveUrl: "",
+            githubUrl: "",
+          });
+          setIsProjectModalOpen(true);
+        }
+        if (action === "delete" && selectedProjectId) {
+          submitDeleteProject(selectedProjectId);
+        }
+      })
+      .catch((err) => alert(err.message));
+  };
 
+  const submitAddProject = () => {
+    const { username, password } = adminCredentials;
     setIsSubmitting(true);
 
     fetch("http://localhost:8080/api/projects", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic " + btoa(`${username}:${password}`),
+      },
       body: JSON.stringify(formData),
     })
       .then((res) => {
@@ -107,34 +130,29 @@ const Projects = () => {
       })
       .then((createdProject) => {
         setProjects((prev) => [...prev, createdProject]);
-        closeModal();
+        setIsProjectModalOpen(false);
+        setIsSubmitting(false);
       })
       .catch((err) => {
-        console.error(err);
-        alert("Error adding project");
+        alert(err.message);
         setIsSubmitting(false);
       });
   };
 
-  // Delete a project by ID
-  const handleDelete = (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+  const submitDeleteProject = (id: string) => {
+    const { username, password } = adminCredentials;
 
     fetch(`http://localhost:8080/api/projects/${id}`, {
       method: "DELETE",
+      headers: {
+        Authorization: "Basic " + btoa(`${username}:${password}`),
+      },
     })
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to delete project");
-        setProjects((prev) => prev.filter((project) => project._id !== id));
+        if (!res.ok) throw new Error("Unauthorized or failed to delete project");
+        setProjects((prev) => prev.filter((p) => p._id !== id));
       })
-      .catch((err) => {
-        console.error(err);
-        alert("Error deleting project");
-      });
-  };
-
-  const toggleProject = (index: number) => {
-    setExpandedProject(expandedProject === index ? null : index);
+      .catch((err) => alert(err.message));
   };
 
   return (
@@ -170,10 +188,7 @@ const Projects = () => {
                     <div className="mb-4 animate-bounce-in">
                       <div className="flex flex-wrap gap-2 mb-4">
                         {project.technologies.map((tech) => (
-                          <span
-                            key={tech}
-                            className="px-3 py-1 text-xs rounded-full skill-badge"
-                          >
+                          <span key={tech} className="px-3 py-1 text-xs rounded-full skill-badge">
                             {tech}
                           </span>
                         ))}
@@ -185,8 +200,7 @@ const Projects = () => {
                           className="flex items-center gap-2 hover-glow"
                           onClick={() => window.open(project.liveUrl, "_blank")}
                         >
-                          <ExternalLink className="h-4 w-4" />
-                          Live Demo
+                          <ExternalLink className="h-4 w-4" /> Live Demo
                         </Button>
                         <Button
                           size="sm"
@@ -194,17 +208,15 @@ const Projects = () => {
                           className="flex items-center gap-2 hover-glow"
                           onClick={() => window.open(project.githubUrl, "_blank")}
                         >
-                          <Github className="h-4 w-4" />
-                          Source Code
+                          <Github className="h-4 w-4" /> Source Code
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
                           className="flex items-center gap-2 hover-glow"
-                          onClick={() => handleDelete(project._id!)}
+                          onClick={() => handleDeleteClick(project._id!)}
                         >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
+                          <Trash2 className="h-4 w-4" /> Delete
                         </Button>
                       </div>
                     </div>
@@ -229,7 +241,7 @@ const Projects = () => {
             {/* Add Project Card */}
             <div
               className="group scale-hover bg-card border border-dashed border-border rounded-lg overflow-hidden min-h-[400px] flex items-center justify-center hover:border-primary/50 transition-colors animate-pulse-slow"
-              onClick={openModal}
+              onClick={handleAddClick}
             >
               <button
                 className="flex flex-col items-center gap-4 p-8 text-muted-foreground hover:text-primary transition-colors"
@@ -248,19 +260,73 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-          role="dialog"
-          aria-modal="true"
-        >
+      {/* Admin Modal */}
+      {/* Admin Modal */}
+{isAdminModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-md w-full p-6 relative">
+      <button
+        className="absolute top-3 right-3 text-gray-600 dark:text-gray-300 hover:text-red-500"
+        onClick={() => setIsAdminModalOpen(false)}
+        type="button"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
+      <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+        Admin Login
+      </h3>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          authenticateAdmin(selectedProjectId ? "delete" : "add");
+        }}
+        className="space-y-4"
+      >
+        <input
+          type="text"
+          placeholder="Username"
+          value={adminCredentials.username}
+          onChange={(e) =>
+            setAdminCredentials((prev) => ({ ...prev, username: e.target.value }))
+          }
+          className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+                     bg-white text-black placeholder-gray-500 
+                     dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={adminCredentials.password}
+          onChange={(e) =>
+            setAdminCredentials((prev) => ({ ...prev, password: e.target.value }))
+          }
+          className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+                     bg-white text-black placeholder-gray-500 
+                     dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+          required
+        />
+        <div className="flex justify-end gap-4 mt-4">
+          <Button type="button" variant="outline" onClick={() => setIsAdminModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="submit">Submit</Button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+
+      {/* Project Form Modal */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-lg w-full p-6 relative">
             <button
               className="absolute top-3 right-3 text-gray-600 dark:text-gray-300 hover:text-red-500"
-              onClick={closeModal}
-              aria-label="Close Modal"
-              title="Close"
+              onClick={() => setIsProjectModalOpen(false)}
               type="button"
             >
               <X className="w-6 h-6" />
@@ -270,118 +336,86 @@ const Projects = () => {
               Add New Project
             </h3>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder="Title"
-                required
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <input
-                type="text"
-                name="shortDescription"
-                value={formData.shortDescription}
-                onChange={handleChange}
-                placeholder="Short Description"
-                required
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <textarea
-                name="fullDescription"
-                value={formData.fullDescription}
-                onChange={handleChange}
-                placeholder="Full Description"
-                required
-                rows={4}
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <input
-                type="text"
-                name="technologies"
-                value={formData.technologies.join(", ")}
-                onChange={handleChange}
-                placeholder="Technologies (comma separated)"
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <input
-                type="text"
-                name="image"
-                value={formData.image}
-                onChange={handleChange}
-                placeholder="Image URL"
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <input
-                type="text"
-                name="liveUrl"
-                value={formData.liveUrl}
-                onChange={handleChange}
-                placeholder="Live Demo URL"
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <input
-                type="text"
-                name="githubUrl"
-                value={formData.githubUrl}
-                onChange={handleChange}
-                placeholder="GitHub URL"
-                className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
-         bg-white text-black placeholder-gray-500 
-         dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
-                disabled={isSubmitting}
-              />
-              <div className="flex justify-end gap-4 mt-4">
-                <Button variant="outline" onClick={closeModal} type="button" disabled={isSubmitting}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && (
-                    <svg
-                      className="animate-spin h-5 w-5 mr-2 text-white inline-block"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                      ></path>
-                    </svg>
-                  )}
-                  Submit
-                </Button>
-              </div>
-            </form>
+            <form onSubmit={(e) => { e.preventDefault(); submitAddProject(); }} className="space-y-4">
+  <input
+    type="text"
+    name="title"
+    value={formData.title}
+    onChange={handleChange}
+    placeholder="Title"
+    required
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <input
+    type="text"
+    name="shortDescription"
+    value={formData.shortDescription}
+    onChange={handleChange}
+    placeholder="Short Description"
+    required
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <textarea
+    name="fullDescription"
+    value={formData.fullDescription}
+    onChange={handleChange}
+    placeholder="Full Description"
+    required
+    rows={4}
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <input
+    type="text"
+    name="technologies"
+    value={formData.technologies.join(", ")}
+    onChange={handleChange}
+    placeholder="Technologies (comma separated)"
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <input
+    type="text"
+    name="image"
+    value={formData.image}
+    onChange={handleChange}
+    placeholder="Image URL"
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <input
+    type="text"
+    name="liveUrl"
+    value={formData.liveUrl}
+    onChange={handleChange}
+    placeholder="Live Demo URL"
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <input
+    type="text"
+    name="githubUrl"
+    value={formData.githubUrl}
+    onChange={handleChange}
+    placeholder="GitHub URL"
+    className="border border-gray-400 rounded px-3 py-2 w-full resize-none 
+               bg-white text-black placeholder-gray-500 
+               dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
+  />
+  <div className="flex justify-end gap-4 mt-4">
+    <Button variant="outline" onClick={() => setIsProjectModalOpen(false)}>Cancel</Button>
+    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Submitting..." : "Submit"}</Button>
+  </div>
+</form>
+
           </div>
         </div>
       )}
