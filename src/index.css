@@ -1,0 +1,269 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Portfolio Design System - Blue & Green Theme */
+
+@layer base {
+  :root {
+    /* Light Mode - Portfolio Theme */
+    --background: 0 0% 98%;
+    --foreground: 210 24% 16%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 210 24% 16%;
+    
+    --primary: 217 91% 60%; /* Blue */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 158 64% 52%; /* Green */
+    --secondary-foreground: 0 0% 100%;
+    
+    --accent: 210 40% 96%;
+    --accent-foreground: 210 24% 16%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 210 16% 46%;
+    
+    --border: 214 31% 91%;
+    --input: 214 31% 91%;
+    --ring: 217 91% 60%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Portfolio Specific Colors */
+    --hero-gradient-from: 217 91% 60%; /* Blue */
+    --hero-gradient-to: 158 64% 52%; /* Green */
+    --skill-badge: 217 91% 95%;
+    --skill-badge-foreground: 217 91% 60%;
+    --project-shadow: 217 91% 60%;
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark Mode - Portfolio Theme */
+    --background: 220 26% 8%;
+    --foreground: 0 0% 95%;
+    
+    --card: 220 26% 10%;
+    --card-foreground: 0 0% 95%;
+    
+    --primary: 217 91% 60%; /* Blue - same */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 158 64% 52%; /* Green - same */
+    --secondary-foreground: 0 0% 100%;
+    
+    --accent: 220 26% 12%;
+    --accent-foreground: 0 0% 95%;
+    
+    --muted: 220 26% 12%;
+    --muted-foreground: 220 16% 65%;
+    
+    --border: 220 26% 15%;
+    --input: 220 26% 15%;
+    --ring: 217 91% 60%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Portfolio Specific Colors - Dark Mode */
+    --hero-gradient-from: 217 91% 60%; /* Blue */
+    --hero-gradient-to: 158 64% 52%; /* Green */
+    --skill-badge: 220 26% 15%;
+    --skill-badge-foreground: 217 91% 60%;
+    --project-shadow: 217 91% 60%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Hero Section Styles */
+  .hero-gradient {
+    background: linear-gradient(135deg, hsl(var(--hero-gradient-from)), hsl(var(--hero-gradient-to)));
+  }
+  
+  .hero-text-gradient {
+    background: linear-gradient(135deg, hsl(var(--hero-gradient-from)), hsl(var(--hero-gradient-to)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Animation Classes */
+  .fade-in {
+    animation: fadeIn 0.8s ease-out forwards;
+    opacity: 0;
+  }
+  
+  .slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  
+  .scale-hover {
+    transition: var(--transition-smooth);
+  }
+  
+  .scale-hover:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px hsl(var(--project-shadow) / 0.15);
+  }
+  
+  /* Skill Badge */
+  .skill-badge {
+    background: hsl(var(--skill-badge));
+    color: hsl(var(--skill-badge-foreground));
+    border: 1px solid hsl(var(--border));
+  }
+  
+  /* Focus States */
+  .focus-ring:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+  }
+  
+  /* Dark Mode Toggle */
+  .dark-toggle {
+    transition: var(--transition-bounce);
+  }
+  
+  .dark-toggle:hover {
+    transform: rotate(180deg);
+  }
+
+  /* Enhanced Animations */
+  .animate-pulse-slow {
+    animation: pulseGlow 3s ease-in-out infinite;
+  }
+
+  .animate-bounce-in {
+    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.6s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.6s ease-out;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
